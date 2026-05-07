@@ -1,0 +1,40 @@
+# =========================================================
+# Core PyTorch (GPU)
+# Install the correct CUDA build from:
+# https://pytorch.org/get-started/locally/
+# Example for CUDA 12.1:
+# pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu121
+# =========================================================
+
+torch>=2.1.0
+torchaudio>=2.1.0
+
+# Audio Processing
+soundfile>=0.12.1
+librosa==0.10.0
+resampy==0.4.3
+silero-vad==5.1.2
+
+# ML / Transformers
+transformers==4.46.3
+datasets>=2.18.0
+diffusers==0.29.0
+huggingface_hub>=0.23.0
+safetensors>=0.4.3
+omegaconf==2.3.0
+conformer==0.3.2
+s3tokenizer
+resemble-perth==1.0.1
+
+# Speech / ASR
+openai-whisper
+jiwer>=3.0.0
+
+# Data / Utilities
+numpy==1.26.0
+pandas>=2.0.0
+pyyaml>=6.0.1
+tqdm>=4.66.0
+
+# UI
+gradio>=5.0

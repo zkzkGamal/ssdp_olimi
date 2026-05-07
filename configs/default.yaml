@@ -1,0 +1,24 @@
+project:
+  name: ssdp_olimi_egyptian
+  version: "0.1"
+
+paths:
+  prompts: "data/raw/prompts.txt"
+  output_dir: "data/processed"
+  audio_dir: "data/processed/audio"
+
+tts:
+  model_id: "oddadmix/chatterbox-egyptian-v0"
+  language: "eg"
+  speaker_id: "speaker_01"
+  exaggeration: 0.65
+  cfg_weight: 0.7
+  temperature: 0.85
+  sample_rate: 24000
+
+batch:
+  max_samples: 200
+  resume: true
+
+review:
+  min_quality_score: 3   # 1-5 scale

@@ -1,0 +1,6 @@
+tts_model/
+lahgtna-chatterbox/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
