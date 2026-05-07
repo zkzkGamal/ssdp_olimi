@@ -239,6 +239,13 @@ Mitigations:
 
 For production, supplement with real data and automated quality metrics (e.g., WER validation).
 
+## References
+
+- **TTS Model**: [oddadmix/lahgtna-chatterbox-v0 on Hugging Face](https://huggingface.co/oddadmix/lahgtna-chatterbox-v0)
+- **Demo Notebook**: [Lahgtna Chatterbox Demo on Colab](https://colab.research.google.com/github/Oddadmix/notebooks/blob/main/Lahgtna_Chatterbox_Demo.ipynb)
+- **Prompt Generation**: Prompts were assisted by Grok (xAI) and Gemini (Google) for generating diverse Egyptian Arabic expressions.
+- **Testing Documentation**: [Python unittest module](https://docs.python.org/3/library/unittest.html)
+
 ## Contributing
 
 - Fork the repository and submit pull requests.
