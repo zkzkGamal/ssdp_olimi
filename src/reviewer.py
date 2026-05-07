@@ -56,18 +56,50 @@ class DatasetReviewer:
             self.reviewed_path.parent.mkdir(parents=True, exist_ok=True)
             with open(self.reviewed_path, "a", encoding="utf-8") as f:
                 f.write(json.dumps(sample, ensure_ascii=False) + "\n")
+            self.samples[idx] = sample
             logger.info("Saved review for sample %s", sample.get("id"))
             return True
         except Exception as exc:
             logger.error("Failed to save review for sample %s: %s", sample.get("id"), exc, exc_info=True)
             return False
 
+    def resolve_audio_path(self, path_str: str) -> str:
+        if not path_str:
+            return ""
+
+        audio_path = Path(path_str)
+        if audio_path.is_absolute() and audio_path.exists():
+            return str(audio_path)
+
+        candidates = [
+            audio_path,
+            self.manifest_path.parent / audio_path,
+            self.manifest_path.parent.parent / audio_path,
+            self.manifest_path.parent / "audio" / audio_path.name,
+            self.manifest_path.parent.parent / "audio" / audio_path.name,
+        ]
+
+        for candidate in candidates:
+            if candidate.exists():
+                return str(candidate)
+
+        logger.warning(
+            "Audio file not found for path %r. Tried: %s",
+            path_str,
+            [str(c) for c in candidates],
+        )
+        return str(self.manifest_path.parent.parent / audio_path)
+
     def get_current(self):
         if not self.samples:
             return "", "", ""
 
         sample = self.samples[self.current_idx]
-        return sample.get("text", ""), sample.get("audio_path", ""), sample.get("id", "")
+        return (
+            sample.get("text", ""),
+            self.resolve_audio_path(sample.get("audio_path", "")),
+            sample.get("id", ""),
+        )
 
     def launch(self):
         with gr.Blocks(title="Olimi AI - Egyptian Data Review") as demo:
@@ -85,7 +117,11 @@ class DatasetReviewer:
                 progress = gr.Textbox(label="Progress", interactive=False)
 
             quality = gr.Slider(minimum=1, maximum=5, step=1, value=4, label="Quality Score (5 = Excellent)")
-            notes = gr.Textbox(label="Review Notes (pronunciation, prosody, noise, artifacts...)", lines=3)
+            notes = gr.Textbox(
+                label="Review Notes (pronunciation, prosody, noise, artifacts...)",
+                lines=3,
+                placeholder="Type notes here, then save to attach rating and review to this sample.",
+            )
 
             with gr.Row():
                 btn_prev = gr.Button("← Previous")
@@ -94,8 +130,11 @@ class DatasetReviewer:
 
             def update_ui():
                 text, audio, sid = self.get_current()
+                sample = self.samples[self.current_idx] if self.samples else {}
+                quality_value = sample.get("quality", 4)
+                notes_value = sample.get("review_notes", "")
                 prog = f"{self.current_idx + 1} / {len(self.samples)}" if self.samples else "0 / 0"
-                return text, audio, sid, prog
+                return text, audio, sid, prog, quality_value, notes_value
 
             def save_and_next(quality_score, review_notes):
                 if self.save_review(self.current_idx, quality_score, review_notes):
@@ -106,16 +145,20 @@ class DatasetReviewer:
                 self.current_idx = max(0, self.current_idx - 1)
                 return update_ui()
 
+            def go_next():
+                self.current_idx = min(self.current_idx + 1, len(self.samples) - 1)
+                return update_ui()
+
             btn_save.click(
                 save_and_next,
                 inputs=[quality, notes],
-                outputs=[text_box, audio_player, sample_info, progress],
+                outputs=[text_box, audio_player, sample_info, progress, quality, notes],
             )
 
-            btn_next.click(update_ui, outputs=[text_box, audio_player, sample_info, progress])
-            btn_prev.click(go_previous, outputs=[text_box, audio_player, sample_info, progress])
+            btn_next.click(go_next, outputs=[text_box, audio_player, sample_info, progress, quality, notes])
+            btn_prev.click(go_previous, outputs=[text_box, audio_player, sample_info, progress, quality, notes])
 
-            demo.load(update_ui, outputs=[text_box, audio_player, sample_info, progress])
+            demo.load(update_ui, outputs=[text_box, audio_player, sample_info, progress, quality, notes])
 
         try:
             demo.launch(share=False, server_name="127.0.0.1", server_port=7860)
