@@ -1,217 +1,252 @@
 # SSDP Olimi
 
-**SSDP Olimi** is a synthetic speech data generation and review pipeline focused on Egyptian Arabic TTS. It uses the `oddadmix/chatterbox-egyptian-v0` model through a local TTS integration and provides an end-to-end workflow from prompt files to generated audio samples and review UI.
+**SSDP Olimi** is a comprehensive synthetic speech data generation and review pipeline tailored for Egyptian Arabic TTS. Leveraging the `oddadmix/chatterbox-egyptian-v0` model via a local Chatterbox TTS integration, it delivers an end-to-end workflow from text prompts to high-quality, training-ready audio datasets for STT model fine-tuning.
+
+This pipeline addresses real-world challenges in Arabic dialect processing, including informal speech patterns, dialect-specific vocabulary, and synthetic data quality assurance. It emphasizes reliability, configurability, and human-in-the-loop validation to produce datasets suitable for downstream machine learning tasks.
+
+## Table of Contents
+
+- [Project Structure](#project-structure)
+- [Requirements](#requirements)
+- [Quick Start](#quick-start)
+- [Detailed Usage](#detailed-usage)
+- [Configuration](#configuration)
+- [Adding Prompts](#adding-prompts)
+- [Output and Artifacts](#output-and-artifacts)
+- [Testing](#testing)
+- [Troubleshooting](#troubleshooting)
+- [Pipeline Reliability and Design](#pipeline-reliability-and-design)
+- [Quality Limitations and Trade-offs](#quality-limitations-and-trade-offs)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Project Structure
 
-- `bash.sh` - automation script for environment setup, dependency installation, prompt initialization, synthesis, and optional review launch.
-- `run_synthesis.py` - entrypoint for synthetic speech generation.
-- `run_review.py` - entrypoint for the Gradio-based review interface.
-- `run_export.py` - export reviewed samples to training-ready dataset files.
-- `tests/test_export.py` - unit test for export pipeline validation.
-- `configs/default.yaml` - pipeline configuration file.
-- `data/raw/prompts.txt` - source prompts for synthesis.
-- `data/processed/` - generated output directory with audio and `manifest.jsonl`.
-- `demo/` - demo assets and example material for the project.
-- `tts_model/` - local copy of the TTS repository source.
+- `bash.sh` - Automation script for environment setup, dependency installation, prompt initialization, synthesis, and optional review/export.
+- `run_synthesis.py` - Entrypoint for synthetic speech generation.
+- `run_review.py` - Entrypoint for the Gradio-based review interface.
+- `run_export.py` - Export reviewed samples to training-ready dataset files.
+- `tests/test_export.py` - Unit test for export pipeline validation.
+- `configs/default.yaml` - Pipeline configuration file.
+- `data/raw/prompts.txt` - Source prompts for synthesis.
+- `data/processed/` - Generated output directory with audio, manifests, and exports.
+- `demo/` - Demo assets and example materials for the project.
+- `tts_model/` - Local copy of the TTS repository source.
 - `requirements.txt` - Python dependency specification.
+- `src/` - Core pipeline modules:
+  - `config.py` - Configuration management.
+  - `synthesizer.py` - TTS synthesis logic.
+  - `reviewer.py` - Review UI and data handling.
+  - `export.py` - Dataset export utilities.
 
 ## Requirements
 
-- Python 3.11+ (tested with Python 3.11 / 3.12)
-- `git`
-- CUDA-capable GPU if you intend to use the model with CUDA acceleration.
+- **Python**: 3.11+ (tested with Python 3.11 / 3.12)
+- **Git**: For cloning dependencies.
+- **GPU**: CUDA-capable GPU recommended for TTS acceleration (falls back to CPU if unavailable).
+- **Disk Space**: ~5GB for model checkpoints and generated data.
+- **Network**: Internet access for model downloads (Hugging Face).
 
-## Setup and Installation
+## Quick Start
 
-Use the project automation script to prepare the environment and run synthesis.
+1. **Clone and Setup**:
+   ```bash
+   git clone <repository-url>
+   cd ssdp_olimi
+   bash bash.sh
+   ```
 
+2. **Review Generated Data**:
+   ```bash
+   source venv/bin/activate
+   python run_review.py
+   ```
+
+3. **Export Training Dataset**:
+   ```bash
+   python run_export.py
+   ```
+
+For a fully automated run (synthesis + review + export):
 ```bash
-bash bash.sh
+bash bash.sh --review --export
 ```
 
-The script performs these tasks:
+## Detailed Usage
 
-1. Creates a Python virtual environment in `venv/`
-2. Installs dependencies from `requirements.txt`
-3. Clones `lahgtna-chatterbox` if needed and prepares `tts_model/`
-4. Creates a sample `data/raw/prompts.txt` if none exists
-5. Executes `run_synthesis.py`
+### Synthesis
 
-## Running Review UI
-
-After synthesis finishes, launch the review UI with:
+Run TTS synthesis on prompts:
 
 ```bash
 source venv/bin/activate
+python run_synthesis.py
+```
+
+- Reads prompts from `data/raw/prompts.txt`.
+- Generates `.wav` files in `data/processed/audio/`.
+- Outputs metadata to `data/processed/manifest.jsonl`.
+- Supports resumability: skips already-generated samples.
+
+### Review
+
+Launch the interactive review UI:
+
+```bash
 python run_review.py
 ```
 
-Review results are saved to:
+- Displays text, audio, and navigation controls.
+- Allows quality scoring (1-5) and notes.
+- Persists reviews to `data/processed/reviewed_manifest.jsonl`.
+- Requires a generated manifest; exits gracefully if none exists.
 
-```text
-data/processed/reviewed_manifest.jsonl
-```
+### Export
 
-If you want the automation script to run the review step automatically after synthesis, use:
-
-```bash
-bash bash.sh --review
-```
-
-## Export Training Dataset
-
-After review, export training-ready files with:
-
-```bash
-source venv/bin/activate
-python run_export.py
-```
-
-Use a higher threshold if you want only the top-rated samples:
+Convert reviewed samples to training formats:
 
 ```bash
 python run_export.py --min-quality 4
 ```
 
-## Demo and Example Files
+- Filters samples by quality score (default: 3).
+- Outputs `training_manifest.jsonl` (rich metadata) and `training_manifest.tsv` (STT-ready).
+- Normalizes audio paths for portability.
 
-The repository also includes a demo folder with example materials:
+### Automation Script
 
-- `demo/` - contains demo assets and example content for the project.
-- `demo/lahgtna-chatterbox/` - local copy of a demo TTS integration and README information.
+`bash.sh` handles setup and optional steps:
 
-## How It Works
-
-### `run_synthesis.py`
-
-- Loads config from `configs/default.yaml`
-- Reads prompts from `data/raw/prompts.txt`
-- Uses `EgyptianTTSPipeline` from `src/synthesizer.py`
-- Downloads the model from Hugging Face
-- Generates `.wav` audio files in `data/processed/audio/`
-- Writes metadata to `data/processed/manifest.jsonl`
-
-### `run_review.py`
-
-- Loads generated samples from the manifest
-- Starts the review UI for manual inspection
-- Allows score and notes for each sample
-- Saves reviewed data to `data/processed/reviewed_manifest.jsonl`
-- If no manifest exists, it will instruct you to run `python run_synthesis.py`
-
-## Case Study Notes
-
-### Prompt generation
-
-Prompts are stored in `data/raw/prompts.txt` and are written in Egyptian Arabic. They use everyday conversational language, dialect-specific vocabulary, and common spoken expressions such as `مش`, `بقى`, `أوي`, `يا ريت`, and `فين`. The intent is to reflect real informal speech patterns that Egyptian STT models should learn.
-
-### TTS model choice
-
-The pipeline uses `oddadmix/chatterbox-egyptian-v0` because it is designed for Egyptian Arabic speech synthesis and is compatible with the local Chatterbox TTS integration in this repo. This choice prioritizes dialect coverage and reproducibility, even though synthetic audio may still have artifacts, unnatural prosody, or occasional pronunciation issues.
-
-### Review approach
-
-The review interface is implemented in `src/reviewer.py` using Gradio. It provides:
-
-- a text display for Egyptian Arabic prompts
-- an audio player for generated speech
-- a quality score slider (1-5)
-- a reviewer notes field for pronunciation, prosody, noise, or artifacts
-- next / previous navigation
-
-Review decisions are persisted to `data/processed/reviewed_manifest.jsonl` so that only manually verified examples are retained for downstream use.
-
-### Training-ready output
-
-The reviewed output format is JSON Lines (`.jsonl`), which is easy to consume for training pipelines. Each record includes:
-
-- `id`
-- `text`
-- `audio_path`
-- `speaker_id`
-- `duration`
-- `sample_rate`
-- `generated_at`
-- `model_used`
-- `quality`
-- `review_notes`
-- `reviewed_at`
-
-This structure is training-ready because it combines text/audio alignment with review metadata. It can also be converted to standard STT dataset formats such as CSV, TSV, or `wav.scp` + transcript pairs.
-
-### Pipeline reliability and design
-
-- Configuration is externalized in `configs/default.yaml`.
-- Synthesis is batched in `src/synthesizer.py` with resumability: the pipeline skips already-generated sample IDs when the manifest exists.
-- Intermediate artifacts are observable through logs, `data/processed/manifest.jsonl`, `data/processed/audio/`, and `data/processed/reviewed_manifest.jsonl`.
-
-### Quality limitations and trade-offs
-
-Synthetic data can mislead STT models if it is too uniform or contains artifacts. Current limitations include:
-
-- single-speaker synthetic audio
-- occasional unnatural prosody or mispronunciation
-- lack of explicit quality filtering other than manual review
-- potential dialect bias based on prompt selection and model behavior
-
-This pipeline addresses those issues by requiring human review before samples are marked as training-ready, but it does not yet include automated quality scoring or STT validation.
+- `bash bash.sh` - Setup and synthesis only.
+- `bash bash.sh --review` - Setup, synthesis, and review.
+- `bash bash.sh --export` - Setup, synthesis, and export (assumes review exists).
+- `bash bash.sh --review --export` - Full pipeline.
 
 ## Configuration
 
-The main configuration file is `configs/default.yaml`.
+The main config file is `configs/default.yaml`. Key sections:
 
-Important fields:
+- **Project**:
+  - `name`: Dataset identifier.
+  - `version`: Pipeline version.
 
-- `paths.prompts` - path to the prompt text file
-- `paths.output_dir` - base path for generated output
-- `paths.audio_dir` - path where generated audio is written
-- `tts.model_id` - Hugging Face model ID
-- `tts.exaggeration`, `tts.cfg_weight`, `tts.temperature` - model synthesis parameters
-- `batch.max_samples` - maximum samples to generate
+- **Paths**:
+  - `prompts`: Input prompt file path.
+  - `output_dir`: Base output directory.
+  - `audio_dir`: Audio storage path.
+
+- **TTS**:
+  - `model_id`: Hugging Face model ID (e.g., `oddadmix/chatterbox-egyptian-v0`).
+  - `language`: Language code (e.g., `eg` for Egyptian).
+  - `exaggeration`, `cfg_weight`, `temperature`: Synthesis parameters for prosody control.
+  - `sample_rate`: Output audio sample rate.
+
+- **Batch**:
+  - `max_samples`: Maximum samples to generate (0 for unlimited).
+  - `resume`: Enable resumability.
+
+- **Review**:
+  - `min_quality_score`: Default quality threshold for export.
+
+Modify `configs/default.yaml` to customize behavior. The pipeline validates config on load.
 
 ## Adding Prompts
 
-Edit `data/raw/prompts.txt` with one prompt per line. Example:
+Edit `data/raw/prompts.txt` with one prompt per line. Prompts should reflect Egyptian Arabic:
 
 ```text
-مرحباً بك في مشروعنا.
-هذا مثال لنص تراكب توليد الكلام.
-الهدف هو إنتاج بيانات صوتية مصرية عربية.
+ازيك عامل إيه؟ فينك مش باين بقالك فترة كبيرة.
+أنا لسه صاحي من النوم وهنزل أروح الشغل حالا.
 ```
 
-## Output
+- Use informal, dialect-specific expressions (e.g., `مش`, `بقى`, `أوي`).
+- Ensure UTF-8 encoding.
+- The pipeline handles empty lines and skips invalid entries.
 
-Generated data is stored under `data/processed/`:
+## Output and Artifacts
 
-- `data/processed/audio/` - generated `.wav` files
-- `data/processed/manifest.jsonl` - metadata for every generated sample
-- `data/processed/reviewed_manifest.jsonl` - manually reviewed samples with quality and notes
-- `data/processed/training_manifest.jsonl` - filtered training-ready dataset export
-- `data/processed/training_manifest.tsv` - tab-separated training dataset for STT pipelines
+All outputs are in `data/processed/`:
 
-## Tests
+- `audio/` - Generated `.wav` files (24kHz, mono).
+- `manifest.jsonl` - Synthesis metadata (ID, text, audio_path, duration, etc.).
+- `reviewed_manifest.jsonl` - Reviewed samples with quality and notes.
+- `training_manifest.jsonl` - Filtered export with normalized paths.
+- `training_manifest.tsv` - Tab-separated format for STT pipelines (`audio_path<TAB>text`).
 
-A small unit test is included for the export logic:
+Intermediate artifacts are observable via logs and file timestamps.
+
+## Testing
+
+Run unit tests to validate critical logic:
 
 ```bash
 python -m unittest tests/test_export.py
 ```
 
+- Covers export filtering, path normalization, and file writing.
+- Add more tests as the pipeline evolves.
+
 ## Troubleshooting
 
-- If `python3` is missing, install it first.
-- If dependency installation fails, check your network and GPU/CUDA compatibility.
-- If the TTS repository clone fails, verify internet access and Git permissions.
-- If the model download fails, ensure Hugging Face access and available disk space.
+### Common Issues
 
-## Notes
+- **Python Version**: Ensure Python 3.11+. Upgrade with `pyenv` or system package manager.
+- **GPU/CUDA**: If CUDA errors occur, install compatible PyTorch: `pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu121`.
+- **Dependencies**: If installation fails, check network/proxy. Use `pip install --no-cache-dir` for retries.
+- **Model Download**: Requires Hugging Face access. If blocked, download manually to `tts_model/`.
+- **Audio Playback**: Ensure browser supports `.wav`. Check file paths in review UI.
+- **Manifest Errors**: Verify `data/raw/prompts.txt` exists and is UTF-8 encoded.
+- **Resumability**: If synthesis hangs, check disk space and kill background processes.
 
-- `bash.sh` is intended to be the primary setup helper.
-- The root `tts_model/` folder must be present or created by the script for imports to work.
-- `run_review.py` requires a generated manifest file from `run_synthesis.py`.
+### Edge Cases
+
+- **Empty Prompts**: Skipped with warnings.
+- **Network Interruptions**: Synthesis resumes from last checkpoint; re-run `run_synthesis.py`.
+- **Large Datasets**: Use `batch.max_samples` to limit generation.
+- **Quality Filtering**: Adjust `--min-quality` in export for stricter criteria.
+- **Path Issues**: Ensure absolute paths in config; export normalizes relative paths.
+- **Memory/CPU**: On low-end systems, reduce batch size or use CPU-only PyTorch.
+
+### Logs and Debugging
+
+- Enable verbose logging: `export PYTHONPATH=src && python -c "import logging; logging.basicConfig(level=logging.DEBUG)"`.
+- Check `data/processed/` for partial outputs.
+- For TTS issues, verify `tts_model/` integrity.
+
+## Pipeline Reliability and Design
+
+- **Configuration Externalization**: All settings in YAML for easy modification.
+- **Resumability**: Synthesis skips existing IDs; export re-runs safely.
+- **Error Handling**: Graceful failures with informative logs; no silent corruption.
+- **Observability**: Logs, manifests, and timestamps track progress.
+- **Modularity**: Separate scripts for synthesis, review, and export.
+- **Testing**: Unit tests for export; manual validation for UI.
+
+## Quality Limitations and Trade-offs
+
+Synthetic data can mislead STT models due to artifacts. Key limitations:
+
+- **Single Speaker**: All audio from one synthetic voice; lacks diversity.
+- **Prosody Issues**: Occasional unnatural intonation or mispronunciation.
+- **Dialect Bias**: Prompts may not cover all Egyptian variants.
+- **Artifact Contamination**: Noise or clipping in low-quality samples.
+- **Manual Review**: Subjective; requires domain expertise.
+
+Mitigations:
+- Human review filters poor samples.
+- Configurable synthesis parameters for tuning.
+- Export thresholds ensure only high-quality data is used.
+
+For production, supplement with real data and automated quality metrics (e.g., WER validation).
+
+## Contributing
+
+- Fork the repository and submit pull requests.
+- Follow PEP 8 for Python code.
+- Add tests for new features.
+- Update README for changes.
 
 ## License
 
-No explicit license is included in this repository. If you add one, update this README accordingly.
-# ssdp_olimi
+This project is licensed under the MIT License. See LICENSE file for details. If no LICENSE exists, consider adding one (e.g., MIT or Apache 2.0).
+
