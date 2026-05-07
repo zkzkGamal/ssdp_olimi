@@ -1,4 +1,3 @@
-# run_review.py
 from src.reviewer import DatasetReviewer
 import logging
 logging.basicConfig(format='[%(asctime)s] %(levelname)s: %(message)s', level=logging.INFO)

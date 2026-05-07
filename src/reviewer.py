@@ -1,4 +1,3 @@
-# src/reviewer.py
 import gradio as gr
 import json
 from pathlib import Path
