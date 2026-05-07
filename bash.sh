@@ -54,8 +54,17 @@ echo "To launch the review UI, run:"
 echo "  source $VENV_DIR/bin/activate && python run_review.py"
 echo "If you want to run the review step automatically, rerun with:"
 echo "  bash bash.sh --review"
+echo "To export reviewed samples after review, rerun with:"
+echo "  bash bash.sh --export"
+echo "To run both review and export automatically, rerun with:"
+echo "  bash bash.sh --review --export"
 
-if [[ "${1:-}" == "--review" ]]; then
+if [[ "${1:-}" == "--review" ]] || [[ "${2:-}" == "--review" ]]; then
   echo "Launching review UI..."
   python run_review.py
+fi
+
+if [[ "${1:-}" == "--export" ]] || [[ "${2:-}" == "--export" ]]; then
+  echo "Exporting reviewed dataset..."
+  python run_export.py
 fi
